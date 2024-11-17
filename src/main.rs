@@ -15,7 +15,7 @@ fn print_node_child(root: &Node, i: usize) -> usize {
 
     match root {
         Node::Char(c) => {
-            println!("\tn{} [label=\"{}\"]", i, c);
+            println!("\tn{} [label=\"{}\"]", i, if *c == '\0' { "\\0".to_string() } else { c.to_string() });
         }
         Node::Concat((child1, child2)) => {
             println!("\tn{} [label=\"Concat\"]", i);
@@ -79,8 +79,11 @@ fn print_is_match(dfa: &mut DFA, s: &String) {
 
 
 fn main() -> Result<(), String>{
-    let regex = "a*(b|cd*)".to_string();
+    let regex = "[a-zA-Z0-9!#]".to_string();
     let mut tokens = tokenize(&regex)?;
+
+    //println!("tokens: {:?}", tokens);
+
     let root = parse (&mut tokens)?;
 
     //print_node(&root);
@@ -91,6 +94,9 @@ fn main() -> Result<(), String>{
 
     let mut dfa = DFA::from(nfa);
 
+    print_dfa(&dfa);
+
+    /*
     print_is_match(&mut dfa, &"a".to_string());
     print_is_match(&mut dfa, &"aa".to_string());
     print_is_match(&mut dfa, &"b".to_string());
@@ -103,6 +109,6 @@ fn main() -> Result<(), String>{
     print_is_match(&mut dfa, &"ccddd".to_string());
     print_is_match(&mut dfa, &"abcd".to_string());
     print_is_match(&mut dfa, &"ccdddd".to_string());
-
+    */
     Ok(())
 }

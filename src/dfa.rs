@@ -120,6 +120,9 @@ pub fn print_dfa(dfa: &DFA) {
         if dfa.accept.contains(state_num) {
             println!("\tn{} [shape=doublecircle]", state_num);
         }
+        else if state_num == &DEAD_STATE {
+            ()
+        }
         else {
             println!("\tn{} [shape=circle]", state_num);
         }

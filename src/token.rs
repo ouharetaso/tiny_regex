@@ -7,7 +7,10 @@ pub enum Token {
     Char(char),
     LParen,
     RParen,
+    LBracket,
+    RBracket,
     Asterisk,
+    Hyphen,
     VBar,
     EOF
 }
@@ -19,7 +22,10 @@ impl std::fmt::Display for Token {
             Token::Char(c) => write!(f, "{}", c),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
+            Token::LBracket => write!(f, "["),
+            Token::RBracket => write!(f, "]"),
             Token::Asterisk => write!(f, "*"),
+            Token::Hyphen => write!(f, "-"),
             Token::VBar => write!(f, "|"),
             Token::EOF => write!(f, "EOF")
         }
@@ -37,6 +43,9 @@ pub fn tokenize(s: &String) -> Result<VecDeque<Token>, String> {
             ')' => ret.push_back(Token::RParen),
             '*' => ret.push_back(Token::Asterisk),
             '|' => ret.push_back(Token::VBar),
+            '[' => ret.push_back(Token::LBracket),
+            ']' => ret.push_back(Token::RBracket),
+            '-' => ret.push_back(Token::Hyphen),
             '\\' => ret.push_back(Token::Char(char_indices.next().unwrap_or((0, c)).1)),
             _ => ret.push_back(Token::Char(c))
         }

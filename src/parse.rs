@@ -47,14 +47,79 @@ fn consume(tokens: &mut VecDeque<Token>, token: Token) -> Result<(), String> {
     }
 }
 
+fn build_union_btree(start_char: char, end_char: char) -> Box<Node> {
+    let diff = (end_char as u32).checked_sub(start_char as u32).unwrap();
+    if diff == 0 {
+        character(start_char)
+    }
+    else if diff == 1 {
+        union(*character(start_char), *character(end_char))
+    }
+    else {
+        let mid = (start_char as u32 + end_char as u32) / 2;
+        let node1 = build_union_btree(start_char, char::from_u32(mid).unwrap());
+        let node2 = build_union_btree(char::from_u32(mid + 1).unwrap(), end_char);
+        union(*node1, *node2)
+    }
+}
+
 /*
-expr    := subexpr EOF
-subexpr := seq '|' subexpr | seq
-seq     := subseq | ''
-subseq  := star subseq | star
-star    := factor '*' | factor
-factor  := '(' subexpr ')' | CHARACTER
+expr            := subexpr EOF
+subexpr         := seq '|' subexpr | seq
+seq             := subseq | ''
+subseq          := star subseq | star
+star            := factor '*' | factor
+factor          := '(' subexpr ')' | CHARACTER | '[' charset_inner ']'
+charset_inner   := CHARACTER charset_inner | CHARACTER '-' CHARACTER charset_inner | ''
 */
+
+
+fn charset_inner(tokens: &mut VecDeque<Token>) -> Result<Box<Node>, String> {
+    let token = tokens.pop_front().ok_or("Unexpected end of tokens".to_string())?;
+
+    if let Token::Char(c) = token {
+        // charset_inner := CHARACTER charset_inner
+        if let Some(&Token::Char(_next)) = tokens.front() {
+            Ok(union(*character(c), *charset_inner(tokens)?))
+        }
+        // charset_inner := CHARACTER '-' CHARACTER charset_inner
+        else if let Some(&Token::Hyphen) = tokens.front() {
+            consume(tokens, Token::Hyphen)?;
+            let start_char = c;
+            let end_char = if let Token::Char(cc) = tokens.pop_front().ok_or("Unexpected end of tokens".to_string())? {
+                cc
+            }
+            else {
+                return Err(format!("Unexpected meta character"));
+            };
+
+            let node1 = build_union_btree(start_char, end_char);
+
+            if let Some(Token::RBracket) = tokens.front() {
+                Ok(node1)
+            }
+            else {
+                let node2 = charset_inner(tokens)?;
+                Ok(union(*node1, *node2))
+            }
+        }
+        // end of charset_inner
+        else if let Some(&Token::RBracket) = tokens.front() {
+            Ok(character(c))
+        }
+        // unexpected token
+        else if let Some(t) = tokens.front() {
+            Err(format!("Unexpected token \"{}\"", t))
+        }
+        // end of token
+        else {
+            Err("Unexpected end of tokens".to_string())
+        }
+    }
+    else {
+        Err(format!("Unexpected token \"{}\"", token))
+    }
+}
 
 
 fn factor(tokens: &mut VecDeque<Token>) -> Result<Box<Node>, String> {
@@ -69,6 +134,12 @@ fn factor(tokens: &mut VecDeque<Token>) -> Result<Box<Node>, String> {
     // factor := CHARACTER
     else if let Token::Char(c) = token {
         Ok(character(c))
+    }
+    // factor := '[' charset_inner ']'
+    else if token == Token::LBracket {
+        let node = charset_inner(tokens);
+        consume(tokens, Token::RBracket)?;
+        node
     }
     // error
     else {
@@ -101,7 +172,7 @@ fn seq(tokens: &mut VecDeque<Token>) -> Result<Box<Node>, String> {
     if let Some(token) = tokens.front() {
         match *token {
             // seq := subseq
-            Token::LParen | Token::Char(_) => {
+            Token::LParen | Token::Char(_) | Token::LBracket => {
                 subseq(tokens)
             }
             // seq := ''
@@ -124,7 +195,7 @@ fn subseq(tokens: &mut VecDeque<Token>) -> Result<Box<Node>, String> {
     if let Some(token) = tokens.front() {
         match *token {
             // subseq := star subseq
-            Token::LParen | Token::Char(_) => {
+            Token::LParen | Token::Char(_) | Token::LBracket => {
                 Ok(concat(*node, *subseq(tokens)?))
             }
             // subseq := star
