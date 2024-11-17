@@ -3,4 +3,12 @@ name = "tinyregex"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "tinyregex"
+path = "src/lib.rs"
+
+[[bin]]
+name = "tinyregex"
+path = "src/main.rs"
+
 [dependencies]
