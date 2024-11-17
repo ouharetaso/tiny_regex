@@ -9,65 +9,17 @@ use nfa::*;
 mod dfa;
 use dfa::*;
 
-
-fn print_node_child(root: &Node, i: usize) -> usize {
-    let mut node_num = i;
-
-    match root {
-        Node::Char(c) => {
-            println!("\tn{} [label=\"{}\"]", i, if *c == '\0' { "\\0".to_string() } else { c.to_string() });
-        }
-        Node::Concat((child1, child2)) => {
-            println!("\tn{} [label=\"Concat\"]", i);
-            let child1_num = print_node_child(child1, node_num + 1);
-            println!("\tn{} -> n{}", i, node_num + 1);
-            let child2_num = print_node_child(child2, child1_num + 1);
-            println!("\tn{} -> n{}", i, child1_num + 1);
-            node_num = child2_num;
-        }
-        Node::Union((child1, child2)) => {
-            println!("\tn{} [label=\"Union\"]", i);
-            let child1_num = print_node_child(child1, node_num + 1);
-            println!("\tn{} -> n{}", i, node_num + 1);
-            let child2_num = print_node_child(child2, child1_num + 1);
-            println!("\tn{} -> n{}", i, child1_num + 1);
-            node_num = child2_num;
-        }
-        Node::Repeat(child) => {
-            println!("\tn{} [label=\"Repeat\"]", i);
-            let child_num = print_node_child(child, node_num + 1);
-            println!("\tn{} -> n{}", i, node_num + 1);
-            node_num = child_num;
-        }
-    };
-
-    node_num + 1
-}
-
-
-fn print_node(root: &Node) {
-    println!("digraph PARSE {{");
-    println!("\tnode [shape=circle]");
-    println!("");
-
-    print_node_child(root, 0);
-
-    println!("");
-    println!("}}");
-}
-
-
-fn is_match(dfa: &mut DFA, s: &String) -> bool {
+#[allow(dead_code)]
+fn is_match(dfa: &DFA, s: &String) -> bool {
+    let mut state = dfa.get_start();
     for c in s.chars() {
-        dfa.transition(c);
+        state = dfa.transition(c, state);
     }
 
-    let ret = dfa.is_accept();
-    dfa.reset();
-
-    ret
+    dfa.is_accept(state)
 }
 
+#[allow(dead_code)]
 fn print_is_match(dfa: &mut DFA, s: &String) {
     if is_match(dfa, s) {
         println!("{} is a match", s);
@@ -92,7 +44,7 @@ fn main() -> Result<(), String>{
 
     //print_nfa(&nfa);
 
-    let mut dfa = DFA::from(nfa);
+    let dfa = DFA::from(nfa);
 
     print_dfa(&dfa);
 

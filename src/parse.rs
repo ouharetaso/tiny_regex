@@ -245,3 +245,50 @@ fn expr(tokens: &mut VecDeque<Token>) -> Result<Box<Node>, String> {
         Err("Unexpected end of tokens".to_string())
     }
 }
+
+#[allow(dead_code)]
+pub fn print_node_child(root: &Node, i: usize) -> usize {
+    let mut node_num = i;
+
+    match root {
+        Node::Char(c) => {
+            println!("\tn{} [label=\"{}\"]", i, if *c == '\0' { "\\0".to_string() } else { c.to_string() });
+        }
+        Node::Concat((child1, child2)) => {
+            println!("\tn{} [label=\"Concat\"]", i);
+            let child1_num = print_node_child(child1, node_num + 1);
+            println!("\tn{} -> n{}", i, node_num + 1);
+            let child2_num = print_node_child(child2, child1_num + 1);
+            println!("\tn{} -> n{}", i, child1_num + 1);
+            node_num = child2_num;
+        }
+        Node::Union((child1, child2)) => {
+            println!("\tn{} [label=\"Union\"]", i);
+            let child1_num = print_node_child(child1, node_num + 1);
+            println!("\tn{} -> n{}", i, node_num + 1);
+            let child2_num = print_node_child(child2, child1_num + 1);
+            println!("\tn{} -> n{}", i, child1_num + 1);
+            node_num = child2_num;
+        }
+        Node::Repeat(child) => {
+            println!("\tn{} [label=\"Repeat\"]", i);
+            let child_num = print_node_child(child, node_num + 1);
+            println!("\tn{} -> n{}", i, node_num + 1);
+            node_num = child_num;
+        }
+    };
+
+    node_num + 1
+}
+
+#[allow(dead_code)]
+pub fn print_node(root: &Node) {
+    println!("digraph PARSE {{");
+    println!("\tnode [shape=circle]");
+    println!("");
+
+    print_node_child(root, 0);
+
+    println!("");
+    println!("}}");
+}

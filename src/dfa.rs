@@ -13,12 +13,11 @@ pub struct DFA {
     states: HashMap<usize, State>,
     start: usize,
     accept: Vec<usize>,
-    current_state: usize
 }
 
 
 impl State {
-    pub fn new(state_num: usize) -> State {
+    pub fn new() -> State {
         State {
             transitions: HashMap::new(),
             default_transition: DEAD_STATE,
@@ -44,7 +43,6 @@ impl DFA {
             states: HashMap::new(),
             start: 0,
             accept: Vec::new(),
-            current_state: 0
         };
 
         ret.add_state(DEAD_STATE);
@@ -54,7 +52,7 @@ impl DFA {
     }
 
     pub fn add_state(&mut self, state_num: usize) {
-        self.states.insert(state_num, State::new(state_num));
+        self.states.insert(state_num, State::new());
     }
 
     pub fn add_transition(&mut self, state_num: usize, c: char, next_state: usize) {
@@ -77,40 +75,27 @@ impl DFA {
         self.start
     }
 
-    pub fn get_accept(&self) -> &Vec<usize> {
-        &self.accept
-    }
-
     fn get_state(&self, state_num: usize) -> &State {
         self.states.get(&state_num).unwrap()
     }
 
-    fn get_current_state(&self) -> usize {
-        self.current_state
-    }
-
-    pub fn transition(&mut self, c: char) {
-        let current_state = self.get_current_state();
+    pub fn transition(&self, c: char, current_state: usize) -> usize {
         let next_state = self.get_state(current_state).get_transition(c);
 
         if let Some(&state_num) = next_state {
-            self.current_state = state_num;
+            state_num
         }
         else {
-            self.current_state = self.get_state(current_state).default_transition;
+            self.get_state(current_state).default_transition
         }
     }
 
-    pub fn is_accept(&self) -> bool {
-        self.accept.contains(&self.get_current_state())
-    }
-
-    pub fn reset(&mut self) {
-        self.current_state = self.start;
+    pub fn is_accept(&self, state: usize) -> bool {
+        self.accept.contains(&state)
     }
 }
 
-
+#[allow(dead_code)]
 pub fn print_dfa(dfa: &DFA) {
     println!("digraph DFA {{");
     println!("\tnode [shape=circle]");
