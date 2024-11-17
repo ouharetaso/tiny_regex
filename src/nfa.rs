@@ -220,7 +220,7 @@ fn build_nfa_rec(root: Node, nfa: &mut NFA, state_num: usize) -> usize {
     }
 }
 
-
+#[allow(dead_code)]
 pub fn print_nfa(nfa: &NFA) {
     println!("digraph PARSE {{");
     println!("\tnode [shape=circle]");
