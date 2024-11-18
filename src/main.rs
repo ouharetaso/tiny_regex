@@ -1,66 +1,25 @@
 #[allow(dead_code)]
 
-mod token;
-use token::*;
-mod parse;
-use parse::*;
-mod nfa;
-use nfa::*;
-mod dfa;
-use dfa::*;
-
-#[allow(dead_code)]
-fn is_match(dfa: &DFA, s: &String) -> bool {
-    let mut state = dfa.get_start();
-    for c in s.chars() {
-        state = dfa.transition(c, state);
-    }
-
-    dfa.is_accept(state)
-}
-
-#[allow(dead_code)]
-fn print_is_match(dfa: &mut DFA, s: &String) {
-    if is_match(dfa, s) {
-        println!("{} is a match", s);
-    }
-    else {
-        println!("{} is not a match", s);
-    }
-}
-
-
+use tinyregex::TinyRegex;
 fn main() -> Result<(), String>{
-    let regex = "[a-zA-Z0-9!#]".to_string();
-    let mut tokens = tokenize(&regex)?;
+    let regex_str = "[a-zA-Z0-9][a-zA-Z0-9]*";
+    let re = TinyRegex::new(regex_str).unwrap();
 
-    //println!("tokens: {:?}", tokens);
+    let print_is_matched = |s: &str| {
+        if re.is_match(s) {
+            println!("{} has a match regex \"{}\"", s, regex_str);
+        }
+        else {
+            println!("{} does not have a match regex \"{}\"", s, regex_str);
+        }
+    };
 
-    let root = parse (&mut tokens)?;
+    print_is_matched("hello");
+    print_is_matched("hello123");
+    print_is_matched("123");
+    print_is_matched("123hello");
+    print_is_matched("hello123world");
+    print_is_matched("野獣先輩");
 
-    //print_node(&root);
-
-    let nfa = build_nfa(root);
-
-    //print_nfa(&nfa);
-
-    let dfa = DFA::from(nfa);
-
-    print_dfa(&dfa);
-
-    /*
-    print_is_match(&mut dfa, &"a".to_string());
-    print_is_match(&mut dfa, &"aa".to_string());
-    print_is_match(&mut dfa, &"b".to_string());
-    print_is_match(&mut dfa, &"c".to_string());
-    print_is_match(&mut dfa, &"cd".to_string());
-    print_is_match(&mut dfa, &"cdd".to_string());
-    print_is_match(&mut dfa, &"cddd".to_string());
-    print_is_match(&mut dfa, &"cc".to_string());
-    print_is_match(&mut dfa, &"ccdd".to_string());
-    print_is_match(&mut dfa, &"ccddd".to_string());
-    print_is_match(&mut dfa, &"abcd".to_string());
-    print_is_match(&mut dfa, &"ccdddd".to_string());
-    */
     Ok(())
 }
