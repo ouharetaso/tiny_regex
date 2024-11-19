@@ -93,6 +93,10 @@ impl DFA {
     pub fn is_accept(&self, state: usize) -> bool {
         self.accept.contains(&state)
     }
+
+    pub fn is_dead(&self, state: usize) -> bool {
+        state == DEAD_STATE
+    }
 }
 
 #[allow(dead_code)]
