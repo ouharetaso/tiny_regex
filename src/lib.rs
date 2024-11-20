@@ -135,4 +135,17 @@ mod tests {
         assert_eq!("hello114514", &s[mat.range()]);
         assert_eq!("hello114514", mat.as_str());
     }
+
+    #[test]
+    fn test_for_readme() {
+        let re = TinyRegex::new("a(b|c)*d").unwrap();
+        assert!(re.is_match("abbbcd"));
+        assert!(!re.is_match("abbbce"));
+
+        let mat = re.find("wxyzabbbcdeffe").unwrap();
+        assert_eq!(mat.start(), 4);
+        assert_eq!(mat.end(), 10);
+        assert_eq!(mat.as_str(), "abbbcd");
+        assert_eq!(mat.range(), 4..10);
+    }
 }
