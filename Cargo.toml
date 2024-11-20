@@ -1,14 +1,14 @@
 [package]
-name = "tinyregex"
+name = "tiny_regex"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "tinyregex"
+name = "tiny_regex"
 path = "src/lib.rs"
 
 [[bin]]
-name = "tinyregex"
+name = "tiny_regex"
 path = "src/main.rs"
 
 [dependencies]

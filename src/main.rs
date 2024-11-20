@@ -1,6 +1,7 @@
 #[allow(dead_code)]
 
-use tinyregex::TinyRegex;
+use tiny_regex::TinyRegex;
+
 fn main() -> Result<(), String>{
     let regex_str = "[a-zA-Z0-9][a-zA-Z0-9]*";
     let re = TinyRegex::new(regex_str).unwrap();
