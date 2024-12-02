@@ -8,11 +8,14 @@ use nfa::*;
 mod dfa;
 use dfa::*;
 
+use std::collections::VecDeque;
+
 
 pub struct TinyRegex {
     dfa: DFA
 }
 
+#[derive(PartialEq, Debug)]
 pub struct Match<'a> {
     start: usize,
     end: usize,
@@ -91,6 +94,59 @@ impl TinyRegex {
 
         None
     }
+
+    pub fn find_at<'a>(&self, s: &'a str, start: usize) -> Option<Match<'a>> {
+        if self.dfa.is_accept(self.dfa.get_start()) {
+            return Some(Match {
+                start: start,
+                end: start,
+                matched_str: &s[start..start]
+            })
+        }
+
+        for (i, _) in s[start..].char_indices() {
+            let mut state = self.dfa.get_start();
+            let mut is_match = false;
+            let mut end  = i;
+            for (j, c) in s[i+start..].char_indices() {
+                state = self.dfa.transition(c, state);
+                if self.dfa.is_accept(state) {
+                    is_match = true;
+                    let mut chars = s[i+j..].char_indices();
+                    chars.next();
+                    end = if let Some((e,_)) = chars.next() {
+                        i+j+e
+                    }
+                    else {
+                        s.len()
+                    }
+                }
+                else if self.dfa.is_dead(state) {
+                    break;
+                }
+            }
+            if is_match {
+                return Some(Match {
+                    start: start + i,
+                    end: start + end,
+                    matched_str: &s[start + i..start + end]
+                });
+            }
+        }
+        None
+    } 
+
+    pub fn find_all<'a>(&self, s: &'a str) -> Matches<'a> {
+        let mut matches = VecDeque::<Match>::new();
+        let mut i = 0;
+
+        while let Some(mat) = self.find_at(s, i) {
+            i = mat.end();
+            matches.push_back(mat);
+        }
+
+        Matches::new(matches)
+    }
 }
 
 impl<'a> Match<'a> {
@@ -103,7 +159,7 @@ impl<'a> Match<'a> {
     }
 
     pub fn len(&self) -> usize {
-        self.end - self.start + 1
+        self.end - self.start
     }
 
     pub fn is_empty(&self) -> bool {
@@ -119,6 +175,26 @@ impl<'a> Match<'a> {
     }
 }
 
+pub struct Matches<'a> {
+    matches: VecDeque<Match<'a>>
+}
+
+
+impl<'a> Iterator for Matches<'a> {
+    type Item = Match<'a>;
+
+    fn next(&mut self) -> Option<Match<'a>> {
+        self.matches.pop_front()
+    }
+}
+
+impl<'a> Matches<'a> {
+    pub fn new(matches: VecDeque<Match<'a>>) -> Matches<'a> {
+        Matches {
+            matches
+        }
+    }
+}
 
 
 #[cfg(test)]
@@ -147,5 +223,18 @@ mod tests {
         assert_eq!(mat.end(), 10);
         assert_eq!(mat.as_str(), "abbbcd");
         assert_eq!(mat.range(), 4..10);
+    }
+
+    #[test]
+    fn test_find_all() {
+        let re = TinyRegex::new("[a-zA-Z][a-zA-Z]*").unwrap();
+        let s = "my name is Unyo";
+
+        let mut matches = re.find_all(s);
+        assert_eq!(matches.next().unwrap().as_str(), "my");
+        assert_eq!(matches.next().unwrap().as_str(), "name");
+        assert_eq!(matches.next().unwrap().as_str(), "is");
+        assert_eq!(matches.next().unwrap().as_str(), "Unyo");
+        assert_eq!(matches.next(), None);
     }
 }
