@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
     let re = TinyRegex::new(regex_str).unwrap();
 
     let mut buffer = String::new();
-    io::stdin().read_to_string(&mut buffer).or_else(|e| Err(e))?;
+    io::stdin().read_to_string(&mut buffer)?;
 
     for mat in re.find_all(&buffer) {
         println!("{}", mat.as_str());
