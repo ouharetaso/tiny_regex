@@ -7,7 +7,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'tinyregex'",
+            "name": "Debug executable 'tiny_regex'",
             "cargo": {
                 "args": [
                     "build",
