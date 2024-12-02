@@ -189,7 +189,7 @@ impl<'a> Iterator for Matches<'a> {
 }
 
 impl<'a> Matches<'a> {
-    pub fn new(matches: VecDeque<Match<'a>>) -> Matches<'a> {
+    fn new(matches: VecDeque<Match<'a>>) -> Matches<'a> {
         Matches {
             matches
         }
