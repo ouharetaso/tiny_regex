@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 #[allow(dead_code)]
 
 use std::collections::VecDeque;
@@ -8,7 +9,8 @@ pub enum Node {
     Char(char),
     Concat((Box<Node>, Box<Node>)),
     Union((Box<Node>, Box<Node>)),
-    Repeat(Box<Node>)
+    Repeat(Box<Node>),
+    NegChar(HashSet<char>)
 }
 
 
@@ -22,6 +24,12 @@ pub fn parse(tokens: &mut VecDeque<Token>) -> Result<Node, String> {
 
 fn character(c: char) -> Box<Node> {
     Box::new(Node::Char(c))
+}
+
+fn neg_character(c: char) -> HashSet<char> {
+    let mut set = HashSet::new();
+    set.insert(c);
+    set
 }
 
 fn concat(node1: Node, node2: Node) -> Box<Node> {
@@ -122,6 +130,63 @@ fn charset_inner(tokens: &mut VecDeque<Token>) -> Result<Box<Node>, String> {
 }
 
 
+fn charset_inner_neg(tokens: &mut VecDeque<Token>) -> Result<HashSet<char>, String> {
+    let token = tokens.pop_front().ok_or("Unexpected end of tokens".to_string())?;
+
+    if let Token::Char(c) = token {
+        // charset_inner := CHARACTER charset_inner
+        if let Some(&Token::Char(_next)) = tokens.front() {
+            let set1 = neg_character(c);
+            let set2 = charset_inner_neg(tokens)?;
+
+            Ok(set1.union(&set2).cloned().collect())
+        }
+        // charset_inner := CHARACTER '-' CHARACTER charset_inner
+        else if let Some(&Token::Hyphen) = tokens.front() {
+            consume(tokens, Token::Hyphen)?;
+            let start_char = c;
+            let end_char = if let Token::Char(cc) = tokens.pop_front().ok_or("Unexpected end of tokens".to_string())? {
+                cc
+            }
+            else {
+                return Err(format!("Unexpected meta character"));
+            };
+
+            let set1 = {
+                let mut set = HashSet::new();
+                for c in start_char..=end_char {
+                    set.insert(c);
+                }
+                set
+            };
+
+            if let Some(Token::RBracket) = tokens.front() {
+                Ok(set1)
+            }
+            else {
+                let set2 = charset_inner_neg(tokens)?;
+                Ok(set1.union(&set2).cloned().collect())
+            }
+        }
+        // end of charset_inner
+        else if let Some(&Token::RBracket) = tokens.front() {
+            Ok(neg_character(c))
+        }
+        // unexpected token
+        else if let Some(t) = tokens.front() {
+            Err(format!("Unexpected token \"{}\"", t))
+        }
+        // end of token
+        else {
+            Err("Unexpected end of tokens".to_string())
+        }
+    }
+    else {
+        Err(format!("Unexpected token \"{}\"", token))
+    }
+}
+
+
 fn factor(tokens: &mut VecDeque<Token>) -> Result<Box<Node>, String> {
     let token = tokens.pop_front().ok_or( "Unexpected end of tokens".to_string())?;
 
@@ -135,11 +200,25 @@ fn factor(tokens: &mut VecDeque<Token>) -> Result<Box<Node>, String> {
     else if let Token::Char(c) = token {
         Ok(character(c))
     }
-    // factor := '[' charset_inner ']'
+    // factor := '[' charset_inner ']' | '[' '^' charset_inner ']'
     else if token == Token::LBracket {
-        let node = charset_inner(tokens);
-        consume(tokens, Token::RBracket)?;
-        node
+        // factor := '[' '^' charset_inner ']'
+        if let Some(&Token::Hat) = tokens.front() {
+            consume(tokens, Token::Hat)?;
+            let set = charset_inner_neg(tokens)?;
+            consume(tokens, Token::RBracket)?;
+            Ok(Box::new(Node::NegChar(set)))
+        }
+        // factor := '[' charset_inner ']'
+        else {
+            let node = charset_inner(tokens)?;
+            consume(tokens, Token::RBracket)?;
+            Ok(node)
+        }
+    }
+    // factor := '.'
+    else if token == Token::Dot {
+        Ok(Box::new(Node::NegChar(neg_character('\u{FFFE}'))))
     }
     // error
     else {
@@ -275,6 +354,13 @@ pub fn print_node_child(root: &Node, i: usize) -> usize {
             let child_num = print_node_child(child, node_num + 1);
             println!("\tn{} -> n{}", i, node_num + 1);
             node_num = child_num;
+        }
+        Node::NegChar(set) => {
+            let mut s = String::new();
+            for c in set {
+                s.push(*c);
+            }
+            println!("\tn{} [label=\"NegChar: {}\"]", i, s);
         }
     };
 
