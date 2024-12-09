@@ -15,7 +15,7 @@ pub struct TinyRegex {
     dfa: DFA
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Match<'a> {
     start: usize,
     end: usize,
@@ -112,13 +112,13 @@ impl TinyRegex {
                 state = self.dfa.transition(c, state);
                 if self.dfa.is_accept(state) {
                     is_match = true;
-                    let mut chars = s[i+j..].char_indices();
+                    let mut chars = s[start+i+j..].char_indices();
                     chars.next();
                     end = if let Some((e,_)) = chars.next() {
                         i+j+e
                     }
                     else {
-                        s.len()
+                        s.len() - start
                     }
                 }
                 else if self.dfa.is_dead(state) {
@@ -175,6 +175,7 @@ impl<'a> Match<'a> {
     }
 }
 
+#[derive(Clone)]
 pub struct Matches<'a> {
     matches: VecDeque<Match<'a>>
 }
@@ -240,13 +241,18 @@ mod tests {
 
     #[test]
     fn test_negchar() {
-        let re = TinyRegex::new("[^a-zA-Z][a-zA-Z]*").unwrap();
-        let s = "my name is Unyo";
+        let re = TinyRegex::new("[^・ー]").unwrap();
+        let s = "エドワード・ノートン\n";
 
         let mut matches = re.find_all(s);
-        assert_eq!(matches.next().unwrap().as_str(), " name");
-        assert_eq!(matches.next().unwrap().as_str(), " is");
-        assert_eq!(matches.next().unwrap().as_str(), " Unyo");
+        assert_eq!(matches.next().unwrap().as_str(), "エ");
+        assert_eq!(matches.next().unwrap().as_str(), "ド");
+        assert_eq!(matches.next().unwrap().as_str(), "ワ");
+        assert_eq!(matches.next().unwrap().as_str(), "ド");
+        assert_eq!(matches.next().unwrap().as_str(), "ノ");
+        assert_eq!(matches.next().unwrap().as_str(), "ト");
+        assert_eq!(matches.next().unwrap().as_str(), "ン");
+        assert_eq!(matches.next().unwrap().as_str(), "\n");
         assert_eq!(matches.next(), None);
     }
 }
