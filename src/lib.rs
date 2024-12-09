@@ -237,4 +237,16 @@ mod tests {
         assert_eq!(matches.next().unwrap().as_str(), "Unyo");
         assert_eq!(matches.next(), None);
     }
+
+    #[test]
+    fn test_negchar() {
+        let re = TinyRegex::new("[^a-zA-Z][a-zA-Z]*").unwrap();
+        let s = "my name is Unyo";
+
+        let mut matches = re.find_all(s);
+        assert_eq!(matches.next().unwrap().as_str(), " name");
+        assert_eq!(matches.next().unwrap().as_str(), " is");
+        assert_eq!(matches.next().unwrap().as_str(), " Unyo");
+        assert_eq!(matches.next(), None);
+    }
 }
