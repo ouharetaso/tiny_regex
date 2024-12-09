@@ -12,6 +12,8 @@ pub enum Token {
     Asterisk,
     Hyphen,
     VBar,
+    Hat,
+    Dot,
     EOF
 }
 
@@ -27,6 +29,8 @@ impl std::fmt::Display for Token {
             Token::Asterisk => write!(f, "*"),
             Token::Hyphen => write!(f, "-"),
             Token::VBar => write!(f, "|"),
+            Token::Hat => write!(f, "^"),
+            Token::Dot => write!(f, "."),
             Token::EOF => write!(f, "EOF")
         }
     }
@@ -46,7 +50,15 @@ pub fn tokenize(s: &String) -> Result<VecDeque<Token>, String> {
             '[' => ret.push_back(Token::LBracket),
             ']' => ret.push_back(Token::RBracket),
             '-' => ret.push_back(Token::Hyphen),
-            '\\' => ret.push_back(Token::Char(char_indices.next().unwrap_or((0, c)).1)),
+            '^' => ret.push_back(Token::Hat),
+            '.' => ret.push_back(Token::Dot),
+            '\\' => ret.push_back(Token::Char(match char_indices.next().ok_or("backslash is not followed by any character")?.1 {
+                'n' => '\n', // newline
+                'r' => '\r', // carriage return
+                't' => '\t', // tab character
+                '0' => '\0', // null character
+                _ => c
+            })),
             _ => ret.push_back(Token::Char(c))
         }
     }
