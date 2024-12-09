@@ -1,6 +1,6 @@
 use crate::nfa::*;
 
-use std::collections::HashMap;
+use std::{collections::{HashMap, HashSet}, hash::Hash};
 
 const DEAD_STATE: usize = usize::MAX;
 
@@ -140,6 +140,7 @@ impl From<NFA> for DFA {
         // Get the epsilon closure of the NFA start state
         let nfa_start = nfa.epsilon_closure(nfa.get_start());
         nfa_to_dfa_state_map.insert(nfa_start.clone(), dfa_state_num);
+        nfa_to_dfa_state_map.insert(vec![DEAD_STATE], DEAD_STATE);
         dfa.add_state(dfa_state_num);
         dfa.set_start(dfa_state_num);
 
@@ -175,6 +176,27 @@ impl From<NFA> for DFA {
 
                 dfa.add_transition(current_dfa_state_num, *c, *nfa_to_dfa_state_map.get(&next_nfa_states).unwrap());
             }
+
+            // treat default transitions
+            let mut next_nfa_states = Vec::new();
+
+            // Collect the next NFA states for the current character
+            for &nfa_state_num in current_nfa_states.iter() {
+                next_nfa_states.extend(nfa.epsilon_closure(nfa.get_state(nfa_state_num).unwrap().default_transition));
+            }
+
+            next_nfa_states.sort();
+            next_nfa_states.dedup();
+
+            // If the set of next NFA states is not already mapped to a DFA state
+            if !nfa_to_dfa_state_map.contains_key(&next_nfa_states) {
+                nfa_to_dfa_state_map.insert(next_nfa_states.clone(), dfa_state_num);
+                dfa.add_state(dfa_state_num);
+                worklist.push(next_nfa_states.clone());
+                dfa_state_num += 1;
+            }
+
+            dfa.add_default_transition(current_dfa_state_num, *nfa_to_dfa_state_map.get(&next_nfa_states).unwrap());
         }
 
         // Add accept states to the DFA
