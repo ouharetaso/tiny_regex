@@ -10,9 +10,14 @@ use dfa::*;
 
 use std::collections::VecDeque;
 
+#[cfg(feature = "on_the_fly")]
+pub type TinyRegex = TinyRegexInner<OnTheFlyDFA>;
 
-pub struct TinyRegex {
-    dfa: DFA
+#[cfg(not(feature = "on_the_fly"))]
+pub type TinyRegex = TinyRegexInner<DFA>;
+
+pub struct TinyRegexInner<T: DFAExt> {
+    dfa: T
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -22,14 +27,14 @@ pub struct Match<'a> {
     matched_str: &'a str
 }
 
-impl TinyRegex {
-    pub fn new(regex: &str) -> Result<TinyRegex, String> {
+impl<T: DFAExt> TinyRegexInner<T> {
+    pub fn new(regex: &str) -> Result<TinyRegexInner<T>, String> {
         let mut tokens = tokenize(&regex.to_string())?;
         let root = parse(&mut tokens)?;
         let nfa = build_nfa(root);
-        let dfa = DFA::from(nfa);
+        let dfa = T::new(nfa);
 
-        Ok(TinyRegex {
+        Ok(TinyRegexInner {
             dfa: dfa
         })
     }
@@ -198,7 +203,69 @@ impl<'a> Matches<'a> {
 }
 
 
+
 #[cfg(test)]
+#[cfg(not(feature = "on_the_fly"))]
+mod tests {
+    use crate::TinyRegex;
+
+    #[test]
+    fn test_find() {
+        let re = TinyRegex::new("[a-zA-Z][a-zA-Z0-9]*").unwrap();
+        let s = "うにょ hello114514";
+        let mat = re.find(s).unwrap();
+
+        assert_eq!(10..21, mat.range());
+        assert_eq!("hello114514", &s[mat.range()]);
+        assert_eq!("hello114514", mat.as_str());
+    }
+
+    #[test]
+    fn test_for_readme() {
+        let re = TinyRegex::new("a(b|c)*d").unwrap();
+        assert!(re.is_match("abbbcd"));
+        assert!(!re.is_match("abbbce"));
+
+        let mat = re.find("wxyzabbbcdeffe").unwrap();
+        assert_eq!(mat.start(), 4);
+        assert_eq!(mat.end(), 10);
+        assert_eq!(mat.as_str(), "abbbcd");
+        assert_eq!(mat.range(), 4..10);
+    }
+
+    #[test]
+    fn test_find_all() {
+        let re = TinyRegex::new("[a-zA-Z][a-zA-Z]*").unwrap();
+        let s = "my name is Unyo";
+
+        let mut matches = re.find_all(s);
+        assert_eq!(matches.next().unwrap().as_str(), "my");
+        assert_eq!(matches.next().unwrap().as_str(), "name");
+        assert_eq!(matches.next().unwrap().as_str(), "is");
+        assert_eq!(matches.next().unwrap().as_str(), "Unyo");
+        assert_eq!(matches.next(), None);
+    }
+
+    #[test]
+    fn test_negchar() {
+        let re = TinyRegex::new("[^・ー]").unwrap();
+        let s = "エドワード・ノートン\n";
+
+        let mut matches = re.find_all(s);
+        assert_eq!(matches.next().unwrap().as_str(), "エ");
+        assert_eq!(matches.next().unwrap().as_str(), "ド");
+        assert_eq!(matches.next().unwrap().as_str(), "ワ");
+        assert_eq!(matches.next().unwrap().as_str(), "ド");
+        assert_eq!(matches.next().unwrap().as_str(), "ノ");
+        assert_eq!(matches.next().unwrap().as_str(), "ト");
+        assert_eq!(matches.next().unwrap().as_str(), "ン");
+        assert_eq!(matches.next().unwrap().as_str(), "\n");
+        assert_eq!(matches.next(), None);
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "on_the_fly")]
 mod tests {
     use crate::TinyRegex;
 
