@@ -218,7 +218,7 @@ fn factor(tokens: &mut VecDeque<Token>) -> Result<Box<Node>, String> {
     }
     // factor := '.'
     else if token == Token::Dot {
-        Ok(Box::new(Node::NegChar(neg_character('\u{FFFE}'))))
+        Ok(Box::new(Node::NegChar(HashSet::new())))
     }
     // error
     else {
@@ -251,7 +251,7 @@ fn seq(tokens: &mut VecDeque<Token>) -> Result<Box<Node>, String> {
     if let Some(token) = tokens.front() {
         match *token {
             // seq := subseq
-            Token::LParen | Token::Char(_) | Token::LBracket => {
+            Token::LParen | Token::Char(_) | Token::LBracket | Token::Dot => {
                 subseq(tokens)
             }
             // seq := ''
@@ -274,7 +274,7 @@ fn subseq(tokens: &mut VecDeque<Token>) -> Result<Box<Node>, String> {
     if let Some(token) = tokens.front() {
         match *token {
             // subseq := star subseq
-            Token::LParen | Token::Char(_) | Token::LBracket => {
+            Token::LParen | Token::Char(_) | Token::LBracket | Token::Dot => {
                 Ok(concat(*node, *subseq(tokens)?))
             }
             // subseq := star
