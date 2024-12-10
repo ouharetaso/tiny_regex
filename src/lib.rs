@@ -262,6 +262,18 @@ mod tests {
         assert_eq!(matches.next().unwrap().as_str(), "\n");
         assert_eq!(matches.next(), None);
     }
+
+    #[test]
+    fn test_any_char() {
+        let re = TinyRegex::new(" ... ").unwrap();
+        let s = "Das Alter beginnt in dem Augenblick, wo man nicht mehr ohne die Vergangenheit leben kann.";
+
+        let mut matches = re.find_all(s);
+        assert_eq!(matches.next().unwrap().as_str(), " dem ");
+        assert_eq!(matches.next().unwrap().as_str(), " man ");
+        assert_eq!(matches.next().unwrap().as_str(), " die ");
+        assert_eq!(matches.next(), None);
+    }
 }
 
 #[cfg(test)]
@@ -322,4 +334,17 @@ mod tests {
         assert_eq!(matches.next().unwrap().as_str(), "\n");
         assert_eq!(matches.next(), None);
     }
+
+    #[test]
+    fn test_any_char() {
+        let re = TinyRegex::new(" ... ").unwrap();
+        let s = "Das Alter beginnt in dem Augenblick, wo man nicht mehr ohne die Vergangenheit leben kann.";
+
+        let mut matches = re.find_all(s);
+        assert_eq!(matches.next().unwrap().as_str(), " dem ");
+        assert_eq!(matches.next().unwrap().as_str(), " man ");
+        assert_eq!(matches.next().unwrap().as_str(), " die ");
+        assert_eq!(matches.next(), None);
+    }
+
 }
