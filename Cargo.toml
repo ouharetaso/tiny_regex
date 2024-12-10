@@ -16,3 +16,8 @@ name = "re_place"
 path = "src/re_place.rs"
 
 [dependencies]
+
+
+[features]
+default = [ "on_the_fly" ]
+on_the_fly = []
