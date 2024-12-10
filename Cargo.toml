@@ -19,5 +19,4 @@ path = "src/re_place.rs"
 
 
 [features]
-default = [ "on_the_fly" ]
 on_the_fly = []
