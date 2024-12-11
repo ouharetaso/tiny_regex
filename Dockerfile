@@ -11,8 +11,9 @@ WORKDIR /artifact
 # RUN apt install -y ${apt-package} 
 
 # Gitリポジトリを展開しても良い
-RUN git clone https://github.com/oss-experiment-uec/2024-s2210298-tiny_regex .
+#RUN git clone https://github.com/oss-experiment-uec/2024-s2210298-tiny_regex .
+
+# Dockerfileを実行する場所からファイルをコピーする場合
+COPY . /artifact
 
 RUN cargo build
-# Dockerfileを実行する場所からファイルをコピーする場合
-# COPY . /artifact
