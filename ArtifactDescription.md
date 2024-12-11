@@ -5,7 +5,7 @@
 ### 改変対象
 #### TinyRegex
 https://github.com/ouharetaso/tiny_regex  
-学習用にRustで書かれた正規表現エンジンのサブセット． 
+学習用にRustで書かれた小さい正規表現エンジン．  
 
 ### 改変内容
 * 表現力の向上
@@ -33,57 +33,95 @@ echo "Das Alter beginnt in dem Augenblick, wo man nicht mehr ohne die Vergangenh
 ```
 echo "エドワード・ノートン"|cargo --quiet run --bin re_place "[^・ー]" "ボ"
 ```
-`cargo run --bin re_place`は，`re_place`というバイナリを実行するコマンド．  
-`"[^・ー]"`は，否定文字クラス`[^...]`を表す．  
-`"ボ"`は，否定文字クラスにマッチした文字を置換する文字．  
-これは`ボボボーボ・ボーボボ`と出力されるべきである．
+を実行すると
+```
+ボボボーボ・ボーボボ
+```
+と出力される．  
+* `cargo --quiet run --bin re_place`は`re_place`というバイナリを実行するコマンド．  
+  * `re_place`は，第1引数の正規表現にマッチする文字列を第2引数の文字列に置換する．
+* `"[^・ー]"`は否定文字クラスで`・` `ー`以外の1文字を表す．  
+* `"ボ"`は否定文字クラスにマッチした文字列を置換する文字． 
 
 #### 任意の文字をマッチさせる`.`のサポート
 ```
-
+echo "I have a 🦀 that is cute. You have a 🐍 that is cute."|cargo --quiet run --bin tiny_grep "a .* that is cute"
 ```
-
-以下，記述事項の説明．
-
-* 改変内容として説明した事柄が達成されていること確認する手順を与える．
-* どんなコマンドで，何をして，何が起きるべきか，1ステップずつ説明．
-* コマンドだけでなく，結果の例も示す．
-* 改変対象を動かすだけでなく，特定のファイルの中身を確認するなどの手順も示す．
-* コンテナで使えるものであれば，どんなコマンドに制限はない．
-
-例えば，
-
-1. 入力例 `input.txt` を与えて実行する．
-
-```
-./a.out input.txt
-```
-
 を実行すると
-
 ```
-Hello, World
+a 🦀 that is cute
+a 🐍 that is cute
+```
+と出力される．
+
+* `cargo --quiet run --bin tiny_grep`は`tiny_grep`というバイナリを実行するコマンド．  
+  * `tiny_grep`は，第1引数の正規表現にマッチする部分文字列を1行ずつ標準出力に出力する．
+* `"a .* that is cute"`はかわいいなにかを表現する英語の名詞句を表す．  
+
+#### 一部のエスケープシーケンスのサポート
+1. 入力の準備
+```
+echo -en ".*\t" > unescaped_regex.txt
+echo -En ".*\t" > escaped_regex.txt
+```
+を実行すると`unescaped_regex.txt`と`escaped_regex.txt`が生成される．
+
+* `unescaped_regex.txt`はエスケープシーケンスを用いずにタブ文字をそのまま表現している．
+  * `cat unescaped_regex.txt`を実行すると`.*	`が出力される．
+* `escaped_regex.txt`はタブ文字をエスケープシーケンスで表現している．
+  * `cat escaped_regex.txt`を実行すると`.*\t`が出力される．
+
+2. エスケープシーケンスのサポートの確認
+```
+echo -en "Hello\tWorld\t"|cargo --quiet run --bin tiny_grep "$(cat unescaped_regex.txt)"
+echo -en "Hello\tWorld\t"|cargo --quiet run --bin tiny_grep "$(cat escaped_regex.txt)"
+```
+を実行するとどちらのコマンドも次のような出力が得られる．
+```
+Hello	
+World	
 ```
 
-が出力される．
+### 高速化
+1. 入力の準備
+```
+echo a{,}{,,}{,,,,}|tr -d " " > input.txt
+echo -n "(a*)"{,}{,,}{,,,,} a{,}{,,}{,,,,}|tr -d " " > regex.txt
+```
+を実行すると，`input.txt`と`regex.txt`が生成される．
 
-という説明を，1ステップずつ記述する．
+* `echo a{,}{,,}{,,,,}|tr -d " " > input.txt`は`a`が30回連続した文字列を`input.txt`に書き出している．
+* `echo -n "(a*)"{,}{,,}{,,,,} a{,}{,,}{,,,,}|tr -d " " > regex.txt`は`(a*){30}a{30}`と等価な正規表現を`regex.txt`に書き出している．
+
+2. 元の実装による実行時間の測定
+```
+time cat input.txt | cargo --quiet run --bin tiny_grep "$(cat regex.txt)"
+```
+を実行すると以下のような出力が期待される．
+```
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+real    0m2.524s
+user    0m2.511s
+sys     0m0.014s
+```
+ここでの`user`の項が実際にプログラムを実行するのにかかった時間である．
+
+3. 新しく実装した手法を用いた実行時間の測定
+```
+time cat input.txt | cargo --quiet run --features on_the_fly --bin tiny_grep "$(cat regex.txt)"
+```
+を実行すると以下のような出力が期待される．
+```
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+real    0m0.139s
+user    0m0.127s
+sys     0m0.013s
+```
+新しく実装したOn-the-fly手法によってマッチング処理が高速化されていることが確認できるはずである．  
+上記の結果は筆者の環境(MacbookAir M1, 2020)での結果であり，環境によって異なる可能性があるが，概ね同じような傾向が得られるはずである．
 
 ## 制限と展望
-
-以下，記述事項の説明．
-
-* 改変内容や評価方法について諦めた点があれば説明する．
-  + 意図的に行わなかった事柄も含む．
-* 諦めた理由は問わないが，理由の説明は要する．
-* 時間に余裕があればやりたかった事柄も説明する．
-* 何もないなら「特になし」と明記する．
-
-## 更なる使い方（オプション）
-
-以下，記述事項の説明．
-
-* より現実的な応用例や利用例を説明する．
-* ソフトウェアを使いたくさせる説明が理想的．
-* この節の見出しは適当に変えてよいし，複数の節に分けてもよい．
-* 必須ではないが，書けるなら書いた方が評価者には好印象を与える．
+### より高度な正規表現のサポート
+今の実装では量指定子は`*`(0回以上の繰り返し)しかないのでより表現力を高めるために`?`や`+`や`{n}`などを実装する余地がある．
