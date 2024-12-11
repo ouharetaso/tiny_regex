@@ -276,6 +276,16 @@ mod tests {
     }
 
     #[test]
+    fn test_greedy() {
+        let re = TinyRegex::new("a .* that is cute").unwrap();
+        let s = "I have a 🦀 that is cute. You have a 🐍 that is cute.";
+
+        let mut matches = re.find_all(s);
+        assert_eq!(matches.next().unwrap().as_str(), "a 🦀 that is cute. You have a 🐍 that is cute");
+        assert_eq!(matches.next(), None);
+    }
+
+    #[test]
     fn test_escape_sequence() {
         let re = TinyRegex::new(r".*\n").unwrap();
         let s = "Hello\nWorld\n";

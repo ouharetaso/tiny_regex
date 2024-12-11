@@ -273,9 +273,13 @@ impl From<NFA> for DFA {
 
                 // Collect the next NFA states for the current character
                 for &nfa_state_num in current_nfa_states.iter() {
-                    if let Some(next_nfa_state_num) = nfa.get_state(nfa_state_num).unwrap().get_transition(*c) {
+                    let nfa_state = nfa.get_state(nfa_state_num).unwrap();
+                    if let Some(next_nfa_state_num) = nfa_state.get_transition(*c) {
                         next_nfa_states.extend(nfa.epsilon_closure(*next_nfa_state_num));
                     }
+                    else {
+                        next_nfa_states.extend(nfa.epsilon_closure(nfa_state.default_transition));
+                    }        
                 }
 
                 next_nfa_states.sort();
