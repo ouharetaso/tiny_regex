@@ -19,8 +19,8 @@ https://github.com/ouharetaso/tiny_regex
 
 Dockerイメージの準備
 ```
-docker pull ouhare/2024-s2210298-tiny_regex
-docker run -it --rm --name ae_tiny_regex ouhare/2024-s2210298-tiny_regex
+docker pull ghcr.io/oss-experiment-uec/2024-s2210298-tiny_regex
+docker run -it --rm --name ae_tiny_regex ghcr.io/oss-experiment-uec/2024-s2210298-tiny_regex
 ```
 コンテナ内での動作チェック
 ```
