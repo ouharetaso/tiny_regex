@@ -324,3 +324,22 @@ impl From<NFA> for DFA {
         dfa
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::token::*;
+    use crate::parse::*;
+
+    #[test]
+    fn count_states() {
+        let regex = "[a-zA-Z0-9]".repeat(30);
+        let mut tokens = tokenize(&regex.to_string()).unwrap();
+        let root = parse(&mut tokens).unwrap();
+        let nfa = build_nfa(root);
+        let dfa = DFA::new(nfa);
+
+        assert_eq!(dfa.states.len(), 1862);
+    }
+}
