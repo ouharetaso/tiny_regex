@@ -274,6 +274,17 @@ mod tests {
         assert_eq!(matches.next().unwrap().as_str(), " die ");
         assert_eq!(matches.next(), None);
     }
+
+    #[test]
+    fn test_escape_sequence() {
+        let re = TinyRegex::new(r".*\n").unwrap();
+        let s = "Hello\nWorld\n";
+
+        let mut matches = re.find_all(s);
+        assert_eq!(matches.next().unwrap().as_str(), "Hello\n");
+        assert_eq!(matches.next().unwrap().as_str(), "World\n");
+        assert_eq!(matches.next(), None);
+    }
 }
 
 #[cfg(test)]
