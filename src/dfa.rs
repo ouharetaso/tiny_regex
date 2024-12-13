@@ -1,8 +1,9 @@
 use crate::nfa::*;
 
 use std::collections::HashMap;
+use std::cell::RefCell;
 
-const DEAD_STATE: usize = usize::MAX;
+pub const DEAD_STATE: usize = usize::MAX;
 
 struct State {
     transitions: HashMap<char, usize>,
@@ -13,6 +14,44 @@ pub struct DFA {
     states: HashMap<usize, State>,
     start: usize,
     accept: Vec<usize>,
+}
+
+pub trait DFAExt {
+    fn new(nfa: NFA) -> Self;
+    fn is_accept(&self, state: usize) -> bool;
+    fn is_dead(&self, state: usize) -> bool;
+    fn transition(&self, c: char, current_state: usize) -> usize;
+    fn get_start(&self) -> usize;
+}
+
+
+impl DFAExt for DFA {
+    fn new(nfa: NFA) -> Self {
+        From::from(nfa)
+    }
+
+    fn is_accept(&self, state: usize) -> bool {
+        self.accept.contains(&state)
+    }
+
+    fn is_dead(&self, state: usize) -> bool {
+        state == DEAD_STATE
+    }
+
+    fn transition(&self, c: char, current_state: usize) -> usize {
+        let next_state = self.get_state(current_state).get_transition(c);
+
+        if let Some(&state_num) = next_state {
+            state_num
+        }
+        else {
+            self.get_state(current_state).default_transition
+        }
+    }
+
+    fn get_start(&self) -> usize {
+        self.start
+    }
 }
 
 
@@ -38,19 +77,6 @@ impl State {
 }
 
 impl DFA {
-    pub fn new() -> DFA {
-        let mut ret = DFA {
-            states: HashMap::new(),
-            start: 0,
-            accept: Vec::new(),
-        };
-
-        ret.add_state(DEAD_STATE);
-        ret.add_default_transition(DEAD_STATE, DEAD_STATE);
-
-        ret
-    }
-
     pub fn add_state(&mut self, state_num: usize) {
         self.states.insert(state_num, State::new());
     }
@@ -79,24 +105,10 @@ impl DFA {
         self.states.get(&state_num).unwrap()
     }
 
-    pub fn transition(&self, c: char, current_state: usize) -> usize {
-        let next_state = self.get_state(current_state).get_transition(c);
-
-        if let Some(&state_num) = next_state {
-            state_num
-        }
-        else {
-            self.get_state(current_state).default_transition
-        }
+    fn state_num_range(&self) -> std::ops::Range<usize> {
+        0..self.states.len()
     }
 
-    pub fn is_accept(&self, state: usize) -> bool {
-        self.accept.contains(&state)
-    }
-
-    pub fn is_dead(&self, state: usize) -> bool {
-        state == DEAD_STATE
-    }
 }
 
 #[allow(dead_code)]
@@ -129,17 +141,121 @@ pub fn print_dfa(dfa: &DFA) {
     println!("}}");
 }
 
+pub struct OnTheFlyDFA {
+    nfa: NFA,
+    dfa: RefCell<DFA>,
+    nfa_to_dfa_state_map: RefCell<HashMap<Vec<usize>, usize>>,
+}
 
+impl DFAExt for OnTheFlyDFA {
+    fn new(nfa: NFA) -> Self {
+        let mut dfa = DFA{
+            states: HashMap::new(),
+            start: 0,
+            accept: Vec::new(),
+        };
+
+        dfa.add_state(DEAD_STATE);
+        dfa.add_default_transition(DEAD_STATE, DEAD_STATE);
+
+        let mut nfa_to_dfa_state_map = HashMap::new();
+
+        let dfa_start_num = 0;
+
+        // Get the epsilon closure of the NFA start state
+        let nfa_start = nfa.epsilon_closure(nfa.get_start());
+        nfa_to_dfa_state_map.insert(nfa_start.clone(), dfa_start_num);
+        nfa_to_dfa_state_map.insert(vec![DEAD_STATE], DEAD_STATE);
+        dfa.add_state(dfa_start_num);
+        dfa.set_start(dfa_start_num);
+
+        OnTheFlyDFA {
+            nfa,
+            dfa: RefCell::new(dfa),
+            nfa_to_dfa_state_map: RefCell::new(nfa_to_dfa_state_map),
+        }
+    }
+
+    fn transition(&self, c: char, current_state: usize) -> usize {
+        let current_dfa_state_num = current_state;
+        let mut dfa = self.dfa.borrow_mut();
+
+        if dfa.is_dead(current_dfa_state_num) {
+            return DEAD_STATE;
+        }
+        // already visited
+        else if let Some(&next_state) = dfa.get_state(current_dfa_state_num).get_transition(c) {
+            return next_state;
+        }
+
+        let next_dfa_state_num;
+        let mut nfa_to_dfa_state_map = self.nfa_to_dfa_state_map.borrow_mut();
+        let current_nfa_states = nfa_to_dfa_state_map.iter().find(|(_, &state_num)| state_num == current_dfa_state_num).unwrap().0;
+        let mut next_nfa_states = Vec::new();
+
+        for &nfa_state_num in current_nfa_states.iter() {
+            let nfa_state = self.nfa.get_state(nfa_state_num).unwrap();
+
+            if let Some(next_nfa_state_num) = nfa_state.get_transition(c) {
+                next_nfa_states.extend(self.nfa.epsilon_closure(*next_nfa_state_num));
+            }
+            else {
+                next_nfa_states.extend(self.nfa.epsilon_closure(nfa_state.default_transition));
+            }
+        }
+
+        next_nfa_states.sort();
+        next_nfa_states.dedup();
+
+        if !nfa_to_dfa_state_map.contains_key(&next_nfa_states) {
+            next_dfa_state_num = dfa.state_num_range().end;
+            nfa_to_dfa_state_map.insert(next_nfa_states.clone(), next_dfa_state_num);
+            dfa.add_state(next_dfa_state_num);
+            dfa.add_transition(current_dfa_state_num, c, next_dfa_state_num);
+        }
+        else {
+            next_dfa_state_num = *nfa_to_dfa_state_map.get(&next_nfa_states).unwrap();
+            dfa.add_transition(current_dfa_state_num, c, next_dfa_state_num);
+        }
+
+        if next_nfa_states.contains(&self.nfa.get_accept()) {
+            dfa.add_accept(next_dfa_state_num);
+        }
+
+        next_dfa_state_num
+    }
+
+    fn is_accept(&self, state: usize) -> bool {
+        self.dfa.borrow().is_accept(state)
+    }
+
+    fn is_dead(&self, state: usize) -> bool {
+        self.dfa.borrow().is_dead(state)
+    }
+
+    fn get_start(&self) -> usize {
+        self.dfa.borrow().get_start()
+    }
+}
 
 impl From<NFA> for DFA {
     fn from(nfa: NFA) -> DFA {
-        let mut dfa = DFA::new();
+        let mut dfa = DFA{
+            states: HashMap::new(),
+            start: 0,
+            accept: Vec::new(),
+        };
+
+        dfa.add_state(DEAD_STATE);
+        dfa.add_default_transition(DEAD_STATE, DEAD_STATE);
+
         let mut nfa_to_dfa_state_map = HashMap::new();
         let mut dfa_state_num = 0;
 
         // Get the epsilon closure of the NFA start state
         let nfa_start = nfa.epsilon_closure(nfa.get_start());
         nfa_to_dfa_state_map.insert(nfa_start.clone(), dfa_state_num);
+        nfa_to_dfa_state_map.insert(vec![DEAD_STATE], DEAD_STATE);
         dfa.add_state(dfa_state_num);
         dfa.set_start(dfa_state_num);
 
@@ -157,9 +273,13 @@ impl From<NFA> for DFA {
 
                 // Collect the next NFA states for the current character
                 for &nfa_state_num in current_nfa_states.iter() {
-                    if let Some(next_nfa_state_num) = nfa.get_state(nfa_state_num).unwrap().get_transition(*c) {
+                    let nfa_state = nfa.get_state(nfa_state_num).unwrap();
+                    if let Some(next_nfa_state_num) = nfa_state.get_transition(*c) {
                         next_nfa_states.extend(nfa.epsilon_closure(*next_nfa_state_num));
                     }
+                    else {
+                        next_nfa_states.extend(nfa.epsilon_closure(nfa_state.default_transition));
+                    }        
                 }
 
                 next_nfa_states.sort();
@@ -175,6 +295,27 @@ impl From<NFA> for DFA {
 
                 dfa.add_transition(current_dfa_state_num, *c, *nfa_to_dfa_state_map.get(&next_nfa_states).unwrap());
             }
+
+            // treat default transitions
+            let mut next_nfa_states = Vec::new();
+
+            // Collect the next NFA states for the current character
+            for &nfa_state_num in current_nfa_states.iter() {
+                next_nfa_states.extend(nfa.epsilon_closure(nfa.get_state(nfa_state_num).unwrap().default_transition));
+            }
+
+            next_nfa_states.sort();
+            next_nfa_states.dedup();
+
+            // If the set of next NFA states is not already mapped to a DFA state
+            if !nfa_to_dfa_state_map.contains_key(&next_nfa_states) {
+                nfa_to_dfa_state_map.insert(next_nfa_states.clone(), dfa_state_num);
+                dfa.add_state(dfa_state_num);
+                worklist.push(next_nfa_states.clone());
+                dfa_state_num += 1;
+            }
+
+            dfa.add_default_transition(current_dfa_state_num, *nfa_to_dfa_state_map.get(&next_nfa_states).unwrap());
         }
 
         // Add accept states to the DFA
@@ -185,5 +326,24 @@ impl From<NFA> for DFA {
         }
 
         dfa
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::token::*;
+    use crate::parse::*;
+
+    #[test]
+    fn count_states() {
+        let regex = "[a-zA-Z0-9]".repeat(30);
+        let mut tokens = tokenize(&regex.to_string()).unwrap();
+        let root = parse(&mut tokens).unwrap();
+        let nfa = build_nfa(root);
+        let dfa = DFA::new(nfa);
+
+        assert_eq!(dfa.states.len(), 1862);
     }
 }

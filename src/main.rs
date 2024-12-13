@@ -1,26 +1,28 @@
 #[allow(dead_code)]
 
+use std::io::{self, Read};
 use tiny_regex::TinyRegex;
 
-fn main() -> Result<(), String>{
-    let regex_str = "[a-zA-Z0-9][a-zA-Z0-9]*";
+fn main() -> Result<(), Box<dyn std::error::Error>>{
+    let args = std::env::args().collect::<Vec<String>>();
+ 
+    let usage = format!("\
+enumerate all substrings matching the given regex by searching stdin until EOF
+
+Usage: {} [regex_str]
+[regex_str]: regex string to search
+
+arguments after the first one are ignored", args.get(0).unwrap());
+
+    let regex_str = args.get(1).ok_or_else(|| {eprintln!("{}", usage); "regex string is not provided"})?;
     let re = TinyRegex::new(regex_str).unwrap();
 
-    let print_is_matched = |s: &str| {
-        if re.is_match(s) {
-            println!("{} has a match regex \"{}\"", s, regex_str);
-        }
-        else {
-            println!("{} does not have a match regex \"{}\"", s, regex_str);
-        }
-    };
+    let mut buffer = String::new();
+    io::stdin().read_to_string(&mut buffer)?;
 
-    print_is_matched("hello");
-    print_is_matched("hello123");
-    print_is_matched("123");
-    print_is_matched("123hello");
-    print_is_matched("hello123world");
-    print_is_matched("野獣先輩");
+    for mat in re.find_all(&buffer) {
+        println!("{}", mat.as_str());
+    }
 
     Ok(())
 }

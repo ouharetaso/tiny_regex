@@ -127,6 +127,8 @@ impl NFA {
 pub fn build_nfa(root: Node) -> NFA {
     let mut nfa = NFA::new();
     let mut state_num = nfa.get_start();
+    let dead_state = State::new(DEAD_STATE);
+    nfa.add_state(dead_state);
     state_num = build_nfa_rec(root, &mut nfa, state_num);
     nfa.set_accept(state_num);
     nfa
@@ -214,6 +216,24 @@ fn build_nfa_rec(root: Node, nfa: &mut NFA, state_num: usize) -> usize {
             nfa.add_epsilon_transition(child_accept_num, child_start_num);
             nfa.add_epsilon_transition(child_accept_num, new_start_num);
             nfa.add_epsilon_transition(new_start_num, new_accept_num);
+
+            new_accept_num
+        }
+        Node::NegChar(set) => {
+            let new_start_num = state_num;
+            let mut new_start = State::new(state_num);
+
+            let new_accept_num = new_start_num + 1;
+            let new_accept = State::new(new_accept_num);
+
+            for c in set {
+                new_start.add_transition(c, DEAD_STATE);
+            }
+
+            new_start.set_default_transition(new_accept_num);
+
+            nfa.add_state(new_start);
+            nfa.add_state(new_accept);
 
             new_accept_num
         }
