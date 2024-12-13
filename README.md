@@ -13,6 +13,12 @@ TinyRegex is a toy regex engine for study written in Rust.
     - `(ab|c)*`
 - character class
     - `[a-z]`
+- negated character class
+    - `[^a-z]`
+- any character
+    - `.`
+- on-the-fly DFA
+    - add `features = [ "on_the_fly" ]` to use it
 
 ## Usage
 ```rust
